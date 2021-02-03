@@ -1,0 +1,90 @@
+---
+- name: ensure docker config folder is present
+  changed_when: false
+  file:
+    path: /etc/docker
+    mode: 0644
+    state: directory
+
+- name: ensure docker group present
+  group:
+    name: docker
+    state: present
+    system: true
+
+- name: ensure docker user present
+  user:
+    append: true
+    groups: docker
+    state: present
+    name: '{{ item }}'
+  with_items: '{{ docker_users or [] }}'
+  
+- name: Ensure dependencies are installed.
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - gnupg2
+    state: present
+
+- name: download the latest get_docker.sh
+  get_url:
+    url: https://get.docker.com/
+    dest: /tmp/get_docker.sh
+    mode: 0755
+  register: result_change
+  changed_when: false
+   
+- name: run the script
+  command: /tmp/get_docker.sh
+  changed_when: false
+   
+- name: configure docker daemon.json
+  template:
+    src: daemon.json
+    dest: /etc/docker/daemon.json
+    mode: 0400
+    owner: root
+    group: root
+  notify:
+    - restart docker
+  
+- name: Starting and Enabling Docker service
+  service:
+    name: docker
+    state: started
+    enabled: yes
+  
+- name: Check current docker-compose version.
+  command: docker-compose --version
+  register: docker_compose_current_version
+  changed_when: false
+  failed_when: false
+  
+- name: Delete existing docker-compose version if it's different.
+  file:
+    path: "/usr/local/bin/docker-compose"
+    state: absent
+  when: >
+    docker_compose_current_version.stdout is defined
+    and docker_compose_version not in docker_compose_current_version.stdout
+
+- name: ensure dependencies are installed on debian
+  apt:
+    pkg: ['python-setuptools',
+          'python3-pip']
+    state: present
+    update_cache: true
+    cache_valid_time: 5400
+  changed_when: false
+
+- name: install docker compose
+  pip:
+    name: docker-compose
+    executable: /usr/bin/pip3
+    state: present
+    version: '{{ docker_compose_version | default(omit) }}'
+  changed_when: false
+  notify:
+    - restart docker-compose

@@ -1,0 +1,74 @@
+---
+- name: ensure docker config folder is present
+  changed_when: false
+  file:
+    path: /etc/docker
+    mode: 0644
+    state: directory
+
+- name: ensure docker group present
+  group:
+    name: docker
+    state: present
+    system: true
+
+- name: ensure docker user present
+  user:
+    append: true
+    groups: docker
+    state: present
+    name: '{{ item }}'
+  with_items: '{{ docker_users or [] }}'
+
+- name: Install dependencies
+  yum:
+    name:
+      - amazon-linux-extras
+    state: "{{ state }}"
+
+- name: Installing Docker latest version on Amazon linux
+  shell: amazon-linux-extras install docker -y
+  
+- name: configure docker daemon.json
+  template:
+    src: daemon.json
+    dest: /etc/docker/daemon.json
+    mode: 0400
+    owner: root
+    group: root
+  notify:
+    - restart docker
+  
+- name: Starting and Enabling Docker service
+  service:
+    name: docker
+    state: started
+    enabled: yes
+  
+- name: Check current docker-compose version.
+  command: docker-compose --version
+  register: docker_compose_current_version
+  changed_when: false
+  failed_when: false
+  
+- name: Delete existing docker-compose version if it's different.
+  file:
+    path: "/usr/local/bin/docker-compose"
+    state: absent
+  when: >
+    docker_compose_current_version.stdout is defined
+    and docker_compose_version not in docker_compose_current_version.stdout
+
+- name: Check if Docker Compose is installed on amazon
+  command: docker-compose --version
+  register: docker_compose_check
+  ignore_errors: yes
+  
+- name: Download and install Docker Compose on Amazon linux
+  get_url:
+    url: https://github.com/docker/compose/releases/download/1.21.2/docker-compose-Linux-x86_64
+    dest: /usr/bin/docker-compose
+    mode: 0755
+  when:
+    - docker_compose_check.msg is defined
+    - docker_compose_check.msg.find('No such file or directory') != -1

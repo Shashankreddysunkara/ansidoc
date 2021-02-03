@@ -1,0 +1,8 @@
+---
+- import_tasks: amazonlinux.yml
+  when:
+    - ansible_facts['distribution'] == "Amazon"
+
+- import_tasks: ubuntu.yml
+  when:
+    - ansible_facts['distribution'] == "Ubuntu"

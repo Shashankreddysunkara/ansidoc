@@ -33,4 +33,3 @@ jobs:
           cd /deployment/
           ansible-playbook prod-web.yml --tags=docker-role
           ansible-playbook prod-web.yml --tags=create-role
-          
