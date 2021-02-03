@@ -1,0 +1,40 @@
+- name: transfer Dockerfile and compose file to opt folder
+  template:
+    src: "{{ item }}"
+    dest: "/opt"
+    owner: ubuntu
+    group: ubuntu
+    mode: '0777'
+  changed_when: false
+  with_fileglob:
+    - ./templates/DockerFile
+    - ./templates/docker-compose.yml
+
+- name: Get app stuff from git repo
+  git:
+    repo: git@github.com:you/your-git-repo.git
+    dest: /opt
+    update: yes
+    version: master
+
+
+- name: build the Docker image
+  shell: | 
+          cd /opt
+          docker build -t docker-whale .
+
+- name: Run the Docker image
+  shell: docker run -d docker-whale
+
+- name: Run the docker compose to create postgres DB as a docker service
+  shell: |
+    cd /opt
+    docker-compose up -d
+
+  
+
+
+
+
+
+

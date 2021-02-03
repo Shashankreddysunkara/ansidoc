@@ -1,0 +1,8 @@
+---
+
+- hosts: prod-web
+  remote_user: ubuntu
+  become: true
+  roles:
+    - {role: ansible-role-docker, tags: [ 'docker-role' ]}
+    - {role: create-role,  tags: [ 'create-role']}
